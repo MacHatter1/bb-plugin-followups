@@ -37,9 +37,12 @@ const ENTER =
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 const COLLAPSED_KEY = "followups:collapsed";
-/** Two balanced columns when there's room (a lone fourth tile looks orphaned in three); one when narrow. */
+/**
+ * Two balanced columns when there's room (a lone fourth tile looks orphaned in three); one when narrow.
+ * 21rem lets two fit in BB's 726px message box, whose banner leaves 706px for the grid (22rem needed 710px).
+ */
 const GRID =
-  "grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(22rem,1fr))]";
+  "grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(21rem,1fr))]";
 
 /** Whether the user folded the banner down to its header (remembered across threads). */
 function readCollapsed(): boolean {
