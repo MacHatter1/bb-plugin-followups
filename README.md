@@ -94,20 +94,30 @@ working. Sending a message clears the banner.
 
 ## Install
 
-This repository isn't published yet, so install it from a local checkout:
-
 ```sh
-cd bb-plugin-followups
-npm install && bb plugin build
-bb plugin install path:$PWD --yes
+bb plugin install git:https://github.com/MacHatter1/bb-plugin-followups --yes
 ```
 
 Follow-ups appear the next time a thread finishes. They use BB's primary
 default model until you pick one.
 
+<details>
+<summary><b>Install from a local clone</b></summary>
+
+```sh
+git clone https://github.com/MacHatter1/bb-plugin-followups
+cd bb-plugin-followups
+npm install && bb plugin build
+bb plugin install path:$PWD --yes
+```
+
+</details>
+
 **Requirements**
 
 - bb **0.45+** (Plugin SDK 0.6.15+)
+- The repository is private, so the installing machine needs GitHub
+  credentials with access to it.
 - A provider BB can run models on. Every suggestion and draft is a short run
   on it, and spends its tokens.
 
