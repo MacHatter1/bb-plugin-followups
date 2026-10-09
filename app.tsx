@@ -9,7 +9,7 @@
 // Sending any message clears the banner — the server wipes the stored
 // follow-ups on message.queued/dispatched, so this component simply
 // disappears on the next refresh.
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import type { KeyboardEvent } from "react";
 import {
   definePluginApp,
@@ -29,6 +29,19 @@ import { Glyph, GLYPHS } from "@/components/glyph";
 import type { GlyphName } from "@/components/glyph";
 import { Icon } from "@/components/ui/icon";
 import { CONTROL_HOVER_TRANSITION } from "@/components/ui/motion";
+import {
+  abandonDraft,
+  composerHasOwnText as hasOwnText,
+  failDraft,
+  fillDraft,
+  finishDraft,
+  noteState,
+  readMemory,
+  startDraft,
+  subscribeMemory,
+  takePendingDraft,
+} from "@/lib/banner-memory";
+import type { BannerMemory } from "@/lib/banner-memory";
 
 const CHANGED = "followups-changed";
 /** Fade and rise in when the banner (or its ready state) first appears. */
@@ -363,24 +376,30 @@ function FollowupsBanner() {
   return <ThreadFollowups key={scope.threadId} threadId={scope.threadId} />;
 }
 
+/** The thread's banner memory (see lib/banner-memory.ts), re-rendering when it changes. */
+function useBannerMemory(threadId: string): BannerMemory {
+  const subscribe = useCallback((listener: () => void) => subscribeMemory(threadId, listener), [threadId]);
+  const snapshot = useCallback(() => readMemory(threadId), [threadId]);
+  return useSyncExternalStore(subscribe, snapshot);
+}
+
 function ThreadFollowups({ threadId }: { threadId: string }) {
   const rpc = useRpc<typeof rpcContract>();
   const composer = useComposer();
   const [state, setState] = useState<FollowupsState | null>(null);
-  const [expandingId, setExpandingId] = useState<string | null>(null);
-  const [draftedId, setDraftedId] = useState<string | null>(null);
+  /**
+   * The message being written, the drafted tile, its cost (the suggestions' own
+   * cost rides in `state`) and the banner's own composer text. Kept per thread
+   * outside this component, so a rebuilt message box doesn't forget them.
+   */
+  const memory = useBannerMemory(threadId);
+  const { expandingId, draftedId, draftStats } = memory;
   const [notice, setNotice] = useState<string | null>(null);
-  /** Cost of the draft just written (the suggestions' own cost rides in `state`). */
-  const [draftStats, setDraftStats] = useState<FollowupStats | null>(null);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   /** Prefix for the ids that tie each tile to its reason, for screen readers. */
   const idBase = useId();
   /** The row buttons, in order, for arrow-key navigation. */
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  /** Bumped to abandon an in-flight expansion (cancel, dismiss, new answer). */
-  const requestRef = useRef(0);
-  /** The text this banner last wrote into an otherwise-empty composer. */
-  const lastDraftRef = useRef<string | null>(null);
   /** Bumped by every refresh: two signals close together can be answered out of order. */
   const fetchRef = useRef(0);
 
@@ -417,25 +436,36 @@ function ThreadFollowups({ threadId }: { threadId: string }) {
     }
   });
 
-  // The follow-up being drafted went away (new answer, message sent,
-  // dismissed): abandon the draft instead of dropping it into the composer.
+  // A batch that went away takes its drafted tile and draft cost with it, and a
+  // follow-up that went away (new answer, message sent, dismissed) the message
+  // being written for it. A banner that hasn't loaded yet (state null, as every
+  // rebuilt one starts) leaves the memory alone. Notices belong to the batch too.
   useEffect(() => {
-    if (
-      expandingId !== null &&
-      !state?.suggestions.some((item) => item.id === expandingId)
-    ) {
-      requestRef.current += 1;
-      setExpandingId(null);
-    }
-  }, [state, expandingId]);
+    noteState(threadId, state);
+    if (state !== null && state.status !== "ready") setNotice(null);
+  }, [threadId, state]);
 
-  // Notices belong to the batch they were raised for.
+  /**
+   * Put `text` in the composer without losing the user's own words. The
+   * updater sees the live draft, so typing during a slow expansion is safe.
+   */
+  const fillComposer = useCallback(
+    (text: string) => {
+      composer.replace((current) => fillDraft(threadId, current, text));
+      composer.focus();
+    },
+    [composer, threadId],
+  );
+
+  // A written message lands here rather than straight in the composer, so it
+  // reaches this thread's composer even when the banner that asked for it was
+  // rebuilt (or the thread left) while it was being written.
+  const { pendingDraft } = memory;
   useEffect(() => {
-    if (state?.status !== "ready") {
-      setNotice(null);
-      setDraftStats(null);
-    }
-  }, [state?.status]);
+    if (pendingDraft === null) return;
+    const text = takePendingDraft(threadId);
+    if (text !== null) fillComposer(text);
+  }, [pendingDraft, threadId, fillComposer]);
 
   // Follow-ups belong to a finished answer: nothing is shown while the agent is
   // running, whatever the server holds. (The server clears them when a thread
@@ -474,58 +504,30 @@ function ThreadFollowups({ threadId }: { threadId: string }) {
   if (state.status !== "ready" || state.suggestions.length === 0) return null;
 
   function dismiss() {
-    requestRef.current += 1;
-    setExpandingId(null);
+    abandonDraft(threadId);
     setNotice(null);
     rpc.call("followups_dismiss", { threadId }).then(refetch, refetch);
   }
 
   function cancel() {
-    requestRef.current += 1;
-    setExpandingId(null);
-  }
-
-  /**
-   * Put `text` in the composer without losing the user's own words. The
-   * updater sees the live draft, so typing during a slow expansion is safe.
-   */
-  function fillComposer(text: string) {
-    composer.replace((current) => {
-      const untouched =
-        current.text.trim() === "" || current.text === lastDraftRef.current;
-      if (untouched) {
-        lastDraftRef.current = text;
-        return { text, mentions: [] };
-      }
-      lastDraftRef.current = null;
-      return {
-        text: `${current.text}${current.text.endsWith("\n") ? "\n" : "\n\n"}${text}`,
-        mentions: current.mentions,
-      };
-    });
-    composer.focus();
+    abandonDraft(threadId);
   }
 
   function pick(id: string) {
     if (busy) return;
-    const request = ++requestRef.current;
-    setExpandingId(id);
+    const request = startDraft(threadId, id);
     setNotice(null);
-    setDraftStats(null);
+    // The result is recorded in the thread's memory, not this component: it may
+    // have been rebuilt by the time the message arrives.
     rpc.call("followups_expand", { threadId, id }).then(
-      ({ text, drafted, stats }) => {
-        if (request !== requestRef.current) return;
-        fillComposer(text);
-        setDraftedId(id);
-        setExpandingId(null);
-        setDraftStats(drafted ? stats : null);
-        if (!drafted) {
+      (result) => {
+        if (!finishDraft(threadId, request, result)) return;
+        if (!result.drafted) {
           setNotice("Couldn't write a full message, so this is the short version.");
         }
       },
       (cause: unknown) => {
-        if (request !== requestRef.current) return;
-        setExpandingId(null);
+        if (!failDraft(threadId, request)) return;
         // The thread moved on while the draft was being written, so the follow-up
         // is gone: say nothing, the refresh below takes the banner away.
         if (!/no longer available/i.test(errorText(cause))) {
@@ -537,8 +539,7 @@ function ThreadFollowups({ threadId }: { threadId: string }) {
   }
 
   const suggestions = state.suggestions;
-  const composerHasOwnText =
-    composer.text.trim() !== "" && composer.text !== lastDraftRef.current;
+  const composerHasOwnText = hasOwnText(threadId, composer.text);
   const hint = busy
     ? "Writing your message…"
     : composerHasOwnText

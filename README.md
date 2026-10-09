@@ -284,7 +284,7 @@ bb plugin dev                      # rebuild and reload on every save
 server.ts    events, the workers, storage, RPC and the CLI
 app.tsx      the banner, the header switch, and the model settings section
 components/  Button, BB's Icon, and Glyph (Hugeicons drawn directly)
-lib/         the cn() class helper
+lib/         the banner's per-thread memory, and the cn() class helper
 skills/      the bundled agent skill
 tests/       node:test suites on the SDK's fake plugin host
 docs/        logo and design notes
@@ -295,8 +295,10 @@ built-in test runner (Node 22.18+, no extra packages). They cover the
 suggestion parser against real model output, threads with child threads, the
 per-thread switch, stopping stale workers, waiting on worker events, the
 worker limit, and edge cases such as reloads and failed spawns.
-[docs/DESIGN.md](docs/DESIGN.md#tests) lists what each file covers. The UI has
-no tests yet.
+The banner's per-thread memory, which keeps its drafted tile, draft cost and
+composer text across message-box rebuilds, has tests of its own; the rest of
+the UI has none yet. [docs/DESIGN.md](docs/DESIGN.md#tests) lists what each
+file covers.
 
 `PLUGIN_OVERVIEW.md` is the store listing. Keep it in step with
 `bb.description` in `package.json`.

@@ -158,6 +158,14 @@ puts it in the composer. The plugin never sends anything.
   gives plugins no way to add to the thread's own "more" menu. It is always
   there, so follow-ups can be turned off before the first ones arrive; a slash
   over the icon means off.
+- `lib/banner-memory.ts` — what the banner remembers per thread, outside the
+  component: the message being written, the drafted tile, the draft's cost, and
+  the composer text it wrote itself. BB rebuilds the message box (on some
+  resizes, and whenever a thread is left and come back to), and a rebuilt banner
+  reads the same memory, so none of it is forgotten. A written message waits
+  there until a banner for its thread puts it in that thread's composer, so one
+  that arrives after a rebuild still lands in the right place. It lasts as long
+  as the app is open, not across a reload.
 - `components/glyph.tsx` — icons drawn straight from
   `@hugeicons/core-free-icons` (a build-time devDependency; the bundler keeps
   only the eight glyphs imported there). BB's `Icon` only knows the small subset
@@ -190,6 +198,11 @@ plugin host; `tests/helpers.mjs` holds what the files share.
   or failed event, an early event not acted on, the safety poll, few status
   checks, hidden threads' idle events ignored, and a worker idle before its turn
   starts not read as having answered with its own prompt.
+- `banner-memory.test.mjs` — the banner's per-thread memory: the drafted tile,
+  its cost and its text outliving the banner that asked for them, a banner that
+  hasn't loaded yet leaving them alone, one thread's memory apart from another's,
+  what a new batch or a cancel still clears, late or stale results dropped, and
+  how a draft goes into the composer.
 - `worker-limit.test.mjs` — at most four suggestion workers at once, in order, with
   places given back; the message draft isn't held up.
 - `robustness.test.mjs` — a failed spawn, clearing only when there is something to

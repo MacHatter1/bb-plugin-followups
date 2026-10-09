@@ -36,6 +36,12 @@ All notable changes to Followups are documented here. The format follows
   reports that one, instead of returning at once with the previous run's timing.
 - The banner and the header switch ignore a refresh that comes back after a
   newer one.
+- The banner no longer forgets the drafted tile, the draft's cost, or that the
+  composer holds its own draft when BB rebuilds the message box (on some
+  resizes, or leaving a thread and coming back). Before, the check mark and
+  cost line vanished, and the next pick was added below the old draft instead
+  of replacing it. A message that finishes after a rebuild also lands in its own
+  thread's composer.
 - The follow-up tiles sit two to a row in BB's message box, as intended. Their
   22rem minimum was 4px too wide for two to fit, so they were always in one
   column; it is now 21rem.
