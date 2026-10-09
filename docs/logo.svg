@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <!-- Glyph: Hugeicons CheckList (MIT), the icon BB shows for Followups. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#bg)"/>
+  <g transform="translate(24 24) scale(3)" fill="none">
+    <path d="M11 6L21 6" stroke="#fff" stroke-linecap="round" stroke-width="2"/>
+    <path d="M11 12L21 12" stroke="#fff" stroke-linecap="round" stroke-width="2"/>
+    <path d="M11 18L21 18" stroke="#fff" stroke-linecap="round" stroke-width="2"/>
+    <path d="M3 7.39286C3 7.39286 4 8.04466 4.5 9C4.5 9 6 5.25 8 4" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+    <path d="M3 18.3929C3 18.3929 4 19.0447 4.5 20C4.5 20 6 16.25 8 15" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+</svg>
