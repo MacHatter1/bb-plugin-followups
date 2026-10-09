@@ -16,9 +16,16 @@ Pick one for a ready-to-send draft. Nothing is ever sent for you.
 
 [Features](#features) · [Install](#install) · [How it works](#how-it-works) · [Cost and safety](#cost-and-safety) · [CLI](#cli) · [Settings](#settings) · [Development](#development) · [Design notes](docs/DESIGN.md)
 
+<br>
+
+<img src="docs/screenshots/banner.png" alt="The Follow-ups banner above the message box: three numbered follow-ups drawn from the agent's answer, each with its reason, and the time and tokens the run took" width="900">
+
 </div>
 
 <br>
+
+> [!NOTE]
+> The screenshots are real BB captures populated with fictional demo data.
 
 ## The problem
 
@@ -91,6 +98,15 @@ working. Sending a message clears the banner.
 </td>
 </tr>
 </table>
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/draft.png" alt="A follow-up marked Drafted, its full message in the composer, and the Details table comparing the suggestion and draft runs" width="440"><br><sub><b>One click, a full draft, and what both runs cost</b></sub></td>
+<td align="center"><img src="docs/screenshots/settings.png" alt="The Followups settings page: suggest automatically, suggestion prompt, worker threads to keep, and the follow-ups model picker" width="440"><br><sub><b>Settings and the follow-ups model</b></sub></td>
+</tr>
+</table>
+</div>
 
 ## Install
 
