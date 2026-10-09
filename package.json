@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-followups",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Suggest clickable follow-up prompts above the composer when a thread finishes.",
   "license": "MIT",
   "type": "module",
@@ -24,12 +24,12 @@
     "app": "./app.tsx"
   },
   "dependencies": {
+    "@hugeicons/core-free-icons": "^4.3.5",
     "@radix-ui/react-slot": "^1.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@get-bb/plugin-sdk": "0.6.15",
-    "@hugeicons/core-free-icons": "^4.3.5",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",

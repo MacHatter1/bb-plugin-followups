@@ -167,8 +167,9 @@ puts it in the composer. The plugin never sends anything.
   that arrives after a rebuild still lands in the right place. It lasts as long
   as the app is open, not across a reload.
 - `components/glyph.tsx` — icons drawn straight from
-  `@hugeicons/core-free-icons` (a build-time devDependency; the bundler keeps
-  only the eight glyphs imported there). BB's `Icon` only knows the small subset
+  `@hugeicons/core-free-icons` (a runtime `dependency`, because a
+  `bb plugin install git:` build installs without devDependencies; the bundler
+  keeps only the eight glyphs imported there). BB's `Icon` only knows the small subset
   of that set BB registered, and a name outside it silently renders as a ⚡, so
   anything beyond the everyday controls (✕, ✓, chevrons, spinner, which still use
   BB's `Icon`) goes through `Glyph`.

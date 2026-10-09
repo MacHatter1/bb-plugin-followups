@@ -6,6 +6,14 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+## 0.6.1 - 2026-10-09
+
+### Fixed
+
+- Installing from git (`bb plugin install git:`) failed to build with "Could
+  not resolve @hugeicons/core-free-icons": the banner's icon package was only a
+  dev dependency, and bb installs without those. It is now a dependency.
+
 ## 0.6.0 - 2026-10-09
 
 Everything here was added or changed after the version was last bumped to 0.5.0.
