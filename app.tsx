@@ -57,12 +57,12 @@ const COLLAPSED_KEY = "followups:collapsed";
 const GRID =
   "grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(21rem,1fr))]";
 
-/** Whether the user folded the banner down to its header (remembered across threads). */
+/** Whether the user folded the banner down to its header (remembered across threads). Defaults to folded. */
 function readCollapsed(): boolean {
   try {
-    return localStorage.getItem(COLLAPSED_KEY) === "1";
+    return localStorage.getItem(COLLAPSED_KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -478,8 +478,8 @@ function ThreadFollowups({ threadId }: { threadId: string }) {
   const busy = expandingId !== null;
 
   if (state.status === "working") {
-    // Placeholder tiles hold the space the grid will fill, so the banner
-    // doesn't jump when the suggestions arrive.
+    // Header only while looking: stay folded so the composer doesn't jump when
+    // suggestions arrive (the user unfolds the ready banner if they want tiles).
     return (
       <div key="working" className={`px-2.5 pb-2.5 pt-1.5 ${ENTER}`}>
         <div className="flex min-h-7 items-center gap-1">
@@ -488,15 +488,6 @@ function ThreadFollowups({ threadId }: { threadId: string }) {
             <span role="status">Finding follow-ups…</span>
           </span>
           <DismissButton label="Stop looking for follow-ups" onClick={dismiss} />
-        </div>
-        <div aria-hidden className={`mt-1 ${GRID}`}>
-          {[0, 1, 2, 3].map((tile) => (
-            <div
-              key={tile}
-              className="h-11 animate-pulse rounded-lg bg-state-hover motion-reduce:animate-none"
-              style={{ animationDelay: `${tile * 120}ms` }}
-            />
-          ))}
         </div>
       </div>
     );

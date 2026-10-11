@@ -197,7 +197,7 @@ const SUGGEST_SYSTEM_DETAILED = [
   "",
   "Reply with ONLY a JSON array of objects, best first. Format example, on an unrelated topic:",
   "[{\"label\": \"Check the oven temperature\", \"why\": \"The recipe says bake until done, with no temperature\"}]",
-  "Fewer, better suggestions beat padding; reply [] if the answer is complete and nothing worthwhile follows.",
+  "Fewer, better suggestions beat padding. Reply [] only when there is no next action the assistant can take that is grounded in this answer. A short \"done\" that still leaves a named follow-on (commit the change, update a named file, cover a named case, take up an offer in the answer) is not complete — suggest those.",
 ].join("\n");
 
 /**
@@ -218,7 +218,7 @@ const SUGGEST_SYSTEM_COMPACT = [
   "- why: one sentence of at most 12 words naming a concrete fact from the answer that makes it worth doing. Never praise it or restate the label.",
   "- Only things the assistant can do itself. Nothing that fits any answer (\"run the tests\", \"review the diff\"), nothing already done, nothing only the user can do.",
   "- Make them different from each other, and use the user's language.",
-  "- If nothing worthwhile follows, reply [].",
+  "- Reply [] only when there is no grounded next action left. A short \"done\" with a named follow-on (commit, update a named file, cover a named case) still needs suggestions.",
 ].join("\n");
 
 /** Which suggestion prompt a run uses (the "Suggestion prompt" setting). */
@@ -1276,7 +1276,9 @@ export default async function plugin(bb: BbPluginApi) {
         if (worker.status === "error") throw new Error("Follow-up worker failed.");
         if (worker.status === "idle") {
           const output = (await bb.sdk.threads.output({ threadId: workerId })).output ?? "";
-          if (!isOwnPrompt(output, prompt)) return output;
+          // Empty output means the turn hasn't produced text yet (same as still
+          // showing the prompt). A finished model that chose none replies "[]".
+          if (output.trim() !== "" && !isOwnPrompt(output, prompt)) return output;
         }
         await wait(woken ? WORKER_RECHECK_MS : WORKER_SAFETY_POLL_MS, !woken);
       }
@@ -1552,11 +1554,17 @@ export default async function plugin(bb: BbPluginApi) {
         );
       }
       if (parsed.length === 0) {
-        // An honest "[]" is fine; anything else means the answer was in a shape
-        // we couldn't read, which would otherwise look like "no suggestions".
-        if (text.trim() !== "" && text.trim() !== "[]") {
+        const trimmed = text.trim();
+        // An honest "[]" is a real model choice; anything else means the answer
+        // was in a shape we couldn't read, which would otherwise look silent.
+        if (trimmed === "" || trimmed === "[]") {
+          bb.log.info(
+            `followups: ${threadId} got no suggestions from ${execution.providerId}/${execution.model} ` +
+              `in ${Date.now() - startedAt}ms (${promptStyle} prompt; model replied ${trimmed === "" ? "empty" : "[]"})`,
+          );
+        } else {
           bb.log.warn(
-            `followups: no usable suggestions for ${threadId} from ${execution.providerId}/${execution.model}: ${clip(text.trim(), 200)}`,
+            `followups: no usable suggestions for ${threadId} from ${execution.providerId}/${execution.model}: ${clip(trimmed, 200)}`,
           );
         }
         await writeState(threadId, { status: "empty", suggestions: [] }).catch(() => undefined);
