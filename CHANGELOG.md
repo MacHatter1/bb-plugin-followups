@@ -6,6 +6,20 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+## 0.6.2 - 2026-10-11
+
+### Changed
+
+- The banner starts folded and stays folded (header only) while follow-ups are
+  being found, so the composer doesn't jump when suggestions arrive.
+
+### Fixed
+
+- A model that replied `[]` cleared the banner with no log; that case is now
+  recorded, and blank worker output is no longer treated as a finished answer.
+- The suggestion prompt no longer treats a short "done" that still leaves a
+  named follow-on (commit, a named file, a named case) as complete.
+
 ## 0.6.1 - 2026-10-09
 
 ### Fixed
