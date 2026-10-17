@@ -7,6 +7,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --test \"tests/*.test.mjs\"",
+    "test:worker-prompts": "node --test --test-name-pattern=\"worker sessions are told|worker session rules|pipeline returns literal worker text|drafting-only rules|detailed prompt asks\" tests/robustness.test.mjs",
+    "eval:followups": "node scripts/eval-followups.mjs",
     "build": "bb plugin build",
     "dev": "bb plugin dev"
   },

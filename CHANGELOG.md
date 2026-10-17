@@ -6,6 +6,23 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- A reusable before/after prompt eval, with a fixed conversation corpus,
+  revision-specific prompts and session instructions, Codex Luna 6 with low
+  reasoning, response checks, tool telemetry, timing and token reports.
+  Preparation is offline; live model calls require `--live`.
+- Focused worker tests cover provider-independent instructions and verify that
+  suggestion and expansion pipelines return text without dispatching project work.
+
+### Fixed
+
+- Reinforced that follow-up workers draft prompts for another agent to act on
+  and never execute those actions themselves.
+  Both suggestion styles and clicked-message drafts now carry the rule before
+  their source material and a reminder after it, in addition to session
+  instructions. This also covers hosts without the agent configuration hook.
+
 ## 0.6.3 - 2026-10-17
 
 ### Added
