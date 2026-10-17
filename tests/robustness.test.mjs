@@ -13,7 +13,7 @@ const OUTPUT = '[{"label": "Add a test", "why": "The fix shipped untested"}]';
  * A fake BB. `metadata` seeds what is stored per thread; `prompts` is the user's message history.
  * `world` counts metadata writes and records spawns, stops, archives and deletes.
  */
-async function boot({ spawnFails = false, configureFails = false, metadata = {}, prompts = [], settings = {}, status = "idle", models = null } = {}) {
+async function boot({ spawnFails = false, configureFails = false, metadata = {}, prompts = [], settings = {}, status = "idle", models = null, answer = "The answer." } = {}) {
   const world = {
     metadata: structuredClone(metadata), writes: 0, workers: {}, spawned: [], spawnArgs: [], stops: [], archives: [], deletes: [], modelsGate: null,
     spawnGate: null, spawnCalls: 0, noDefaultModel: false,
@@ -36,7 +36,7 @@ async function boot({ spawnFails = false, configureFails = false, metadata = {},
             ? { id: threadId, status: world.workers[threadId].status, environmentId: "e", projectId: "p", visibility: "hidden" }
             : row(threadId),
         list: async (args) => (args.parentThreadId ? [] : [{ id: "live" }]),
-        output: async ({ threadId }) => ({ output: world.workers[threadId] ? (world.workers[threadId].output ?? "") : "The answer." }),
+        output: async ({ threadId }) => ({ output: world.workers[threadId] ? (world.workers[threadId].output ?? "") : answer }),
         spawn: async (args) => {
           world.spawnCalls += 1;
           world.spawnArgs.push(args);
@@ -396,6 +396,43 @@ for (const configureFails of [false, true]) {
     });
   }
 }
+
+for (const style of ["compact", "detailed"]) {
+  test(`${style} drafting-only rules exclude completed-work verification while preserving stated gaps`, async (t) => {
+    const w = await boot({ settings: { suggestPrompt: style }, prompts: ["Fix the retry timeout in queue.ts."] });
+    t.after(() => w.dispose());
+    const answer = "The retry timeout fix in queue.ts is complete and existing tests pass. Empty-queue regression coverage and README.md retry documentation are missing. I can add the regression test or document the retry option.";
+    await w.idle(answer);
+    await until(() => w.world.spawnArgs.length === 1);
+    const { prompt } = w.world.spawnArgs[0];
+    assert.match(prompt, /Filter out verification of completed work/);
+    assert.match(prompt, /Missing quoted evidence alone is not a gap/);
+    assert.match(prompt, /Keep verification only for an explicitly failing, untested, unverified or uncertain part/);
+    assert.match(prompt, /Adding coverage for a named uncovered case remains valid/);
+    assert.ok(prompt.includes(answer), "the worker still sees the coverage and documentation offers");
+    assert.ok(prompt.lastIndexOf("Filter out verification of completed work") > prompt.indexOf(answer) + answer.length, "the completed-work filter is repeated after the source");
+    assert.match(prompt, /Do not infer missing coverage just because only existing tests are mentioned/);
+  });
+}
+
+test("expand drafting-only rules preserve supplied facts without inventing acceptance criteria", async (t) => {
+  const answer = "The retry timeout fix in queue.ts is complete and existing tests pass. Empty-queue regression coverage is still missing.";
+  const picked = { id: "coverage", label: "Add the empty-queue regression test", why: "Empty-queue regression coverage is still missing" };
+  const w = await boot({ answer, prompts: ["Keep the retry fix unchanged."], metadata: { t1: { ...READY, suggestions: [picked] } } });
+  const pending = w.rpc("followups_expand", { threadId: "t1", id: picked.id }).catch(() => undefined);
+  t.after(async () => { await w.dispose(); await pending; });
+  await until(() => w.world.spawnArgs.length === 1);
+  const { prompt } = w.world.spawnArgs[0];
+  assert.match(prompt, /Restate only information explicitly present in the conversation and selected suggestion/);
+  assert.match(prompt, /Do not add inferred causes, mechanisms, expected runtime behaviour, test assertions, acceptance criteria, commands or file locations/);
+  assert.match(prompt, /If the expected result or a detail is not supplied, omit it/);
+  assert.match(prompt, /Keep the supplied constraints/);
+  assert.doesNotMatch(prompt, /Say exactly what to do, and what done looks like/);
+  assert.ok(prompt.includes(answer));
+  assert.ok(prompt.includes(picked.label));
+  assert.ok(prompt.includes("Keep the retry fix unchanged."));
+  assert.ok(prompt.indexOf("Before output, check every clause") > prompt.indexOf(picked.why) + picked.why.length, "source-only review follows the picked suggestion");
+});
 
 test("every other thread gets exactly what it got before: the skill, and no instructions", async () => {
   const w = await boot();

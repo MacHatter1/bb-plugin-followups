@@ -6,6 +6,14 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- Suppress suggestions to verify completed work just because its diff, logs or
+  test output were not quoted. Verification of stated gaps and regression
+  coverage for named uncovered cases remain valid follow-ups.
+- Expand only the supplied conversation and selected suggestion, without
+  inventing behaviour, acceptance criteria, implementation advice or extra tasks.
+
 ## 0.6.4 - 2026-10-17
 
 ### Added
