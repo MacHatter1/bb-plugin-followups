@@ -64,6 +64,12 @@ Codex. It rejects other providers rather than substituting a model.
 
 ## Review the evidence
 
+The corpus includes the live queue fixture that produced redundant verification
+and an invented retry outcome. It checks both suggestion styles, source-only
+expansion, verification of an explicitly unverified part, and behaviour that is
+explicitly supplied. These literal checks catch the recorded regressions;
+review the full output for other unsupported additions.
+
 Open `report.md`, `results.json`, and `manifest.json` in the output directory.
 The default directory is under the ignored `.local/followups-runs/` path.
 Keep the raw event traces with the report so another reviewer can inspect them.

@@ -181,6 +181,34 @@ test("quality proxies reject malformed raw JSON, extra fields, duplicates, comma
   for (const claim of ["I've run", "I have run", "I’ve completed", "We verified", "I tested", "I did"]) assert.equal(checkQuality(constraints, `${claim} the example in README.md. Keep queue.ts unchanged without dependencies.`).pass, false, claim);
 });
 
+test("live regression cases reject completed-work proof requests and invented behaviour while retaining valid gaps", () => {
+  const suggestions = [
+    { label: "Add the empty-queue regression test", why: "Empty-queue regression coverage is still missing" },
+    { label: "Document the retry option in README.md", why: "Retry documentation is still missing" },
+  ];
+  for (const style of ["compact", "detailed"]) {
+    const entry = corpus.find(({ id }) => id === `${style}-completed-verification`);
+    assert.ok(entry, `${style} live regression case is reusable`);
+    assert.equal(checkQuality(entry, JSON.stringify(suggestions)).pass, true);
+    const repeatedVerification = checkQuality(entry, JSON.stringify([...suggestions, {
+      label: "Show the queue.ts diff and test run output",
+      why: "The claim that existing tests pass was not backed by evidence here",
+    }]));
+    assert.equal(repeatedVerification.checks.find(({ name }) => name === "forbidden:diff").pass, false);
+    assert.equal(repeatedVerification.pass, false);
+  }
+  const grounded = corpus.find(({ id }) => id === "expand-source-only");
+  assert.ok(grounded);
+  assert.equal(checkQuality(grounded, "Add the empty-queue regression test for queue.ts.").pass, true);
+  assert.equal(checkQuality(grounded, "Add a regression test for the empty-queue case in queue.ts, covering the retry timeout fix so an empty queue no longer triggers a spurious retry. Match the existing test style in the file and run the suite to confirm it passes.").pass, false);
+  const gap = corpus.find(({ id }) => id === "detailed-verification-gap");
+  assert.ok(gap);
+  assert.equal(checkQuality(gap, JSON.stringify([{ label: "Verify the reconnect integration behaviour", why: "Reconnect integration tests remain unverified" }])).pass, true);
+  const explicit = corpus.find(({ id }) => id === "expand-explicit-behaviour");
+  assert.ok(explicit);
+  assert.equal(checkQuality(explicit, "Add a regression test for queue.ts confirming an empty queue no longer triggers a spurious retry.").pass, true);
+});
+
 async function fakeCodex(t, extra = "") {
   const dir = await temporary(t), bin = path.join(dir, "codex-fixture");
   await writeFile(bin, `#!/usr/bin/env node

@@ -1,4 +1,7 @@
 // Safe, synthetic conversations. Expectations are deliberately literal proxies.
+const completedAnswer = "For this hypothetical queue.ts change, the retry timeout fix is complete and the existing tests pass. Empty-queue regression coverage and README.md retry documentation are still missing. I can add the empty-queue regression test or document the retry option in README.md.";
+const fixturePrompt = "This is an isolated, text-only fixture for a live Followups plugin smoke test. The code and filenames in the paragraph below are fictional. Do not inspect files, call tools, execute commands, delegate, change settings, or perform any project work. Do not create follow-up suggestions yourself. Reply with exactly the following paragraph, without quotation marks or additional commentary, then finish normally:\n\n" + completedAnswer;
+
 export const corpus = [
   {
     id: "compact-offer", kind: "suggest", style: "compact",
@@ -36,5 +39,29 @@ export const corpus = [
     answer: "README.md describes retries but lacks an example. queue.ts must remain unchanged; no dependencies should be added.",
     picked: { label: "Add a retry documentation example", why: "README.md lacks an example" },
     expected: { required: ["readme.md", "queue.ts", "dependenc"], forbidden: ["i updated", "i ran", "i committed", "deployed"], conservation: ["unchanged", "do not", "don't", "without", "no new", "keep", "leave"] },
+  },
+  ...["compact", "detailed"].map((style) => ({
+    id: `${style}-completed-verification`, kind: "suggest", style,
+    prompts: [fixturePrompt], answer: completedAnswer,
+    expected: { min: 1, max: style === "detailed" ? 5 : 3, required: ["queue", "readme"], forbidden: ["diff", "test run output", "proof", "evidence", "rerun", "re-run", "double-check"] },
+  })),
+  {
+    id: "detailed-verification-gap", kind: "suggest", style: "detailed",
+    prompts: ["Fix the retry timeout in queue.ts."],
+    answer: "The retry timeout fix in queue.ts is complete and existing unit tests pass. Reconnect integration behaviour remains unverified. I can verify the reconnect integration behaviour next.",
+    expected: { min: 1, max: 1, required: ["reconnect"], forbidden: ["diff", "proof", "rerun", "re-run"] },
+  },
+  {
+    id: "expand-source-only", kind: "expand", style: "detailed",
+    prompts: [fixturePrompt], answer: completedAnswer,
+    picked: { label: "Add the empty-queue regression test", why: "Empty-queue regression coverage is still missing" },
+    expected: { required: ["queue", "test"], forbidden: ["spurious", "no longer", "triggers", "test style", "run the suite"] },
+  },
+  {
+    id: "expand-explicit-behaviour", kind: "expand", style: "detailed",
+    prompts: ["Add a regression test for queue.ts confirming an empty queue no longer triggers a spurious retry."],
+    answer: "The empty queue fix is complete. The regression test confirming no spurious retry is still missing.",
+    picked: { label: "Add the empty-queue regression test", why: "The regression test is still missing" },
+    expected: { required: ["queue.ts", "test", "spurious retry"], forbidden: ["i added", "i ran"] },
   },
 ];
