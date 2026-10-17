@@ -192,9 +192,13 @@ The full detail, including timings, edge cases and cleanup rules, is in
   or its own unedited draft. Anything else gets the draft added below.
 - 🔒 **Workers get as little as possible.** Each worker runs in the least
   privileged permission mode its provider offers (`accept-edits` where
-  available), and is told to treat the quoted conversation as material, not
-  instructions, and to use no tools. It is still an agent session in the
-  thread's environment: this limits it, but it is not a sandbox.
+  available). Every suggestion and expansion prompt tells it to draft a prompt
+  for another agent to act on and never act itself, including read-only
+  inspection, tests, delegation or commits. The rule appears before the quoted
+  material and a reminder follows it, as well as in the session instructions.
+  Clicking a suggestion requests a draft; it never authorizes the worker to
+  execute it. It is still an agent
+  session in the thread's environment: this limits it, but it is not a sandbox.
 - 💸 **Spends tokens on purpose.** Every visible thread that finishes with
   follow-ups on starts a worker on your chosen model, at most four at once.
   The footer shows each run's cost. Its token count covers the worker's whole
@@ -290,6 +294,7 @@ bb plugin enable followups
 ```sh
 npm install
 npm test                           # node:test on the SDK's fake plugin host
+npm run test:worker-prompts         # drafting instructions and text-only plugin lifecycle
 npm run typecheck
 bb plugin build                    # dist/server.js, dist/app.js, dist/app.css
 bb plugin install path:$PWD --yes
@@ -315,6 +320,13 @@ The banner's per-thread memory, which keeps its drafted tile, draft cost and
 composer text across message-box rebuilds, has tests of its own; the rest of
 the UI has none yet. [docs/DESIGN.md](docs/DESIGN.md#tests) lists what each
 file covers.
+
+Run `npm run eval:followups -- --baseline HEAD` to prepare a before/after
+prompt comparison without calling a model. Add `--live` to run it through
+Codex with `gpt-6-luna` and low reasoning. The eval records response checks,
+observed tool attempts, wall time, token usage and paired outputs for review.
+See [the eval guide](docs/EVALUATING_PROMPTS.md) for comparisons, output files,
+and the distinction between this controlled replay and a full BB session.
 
 `PLUGIN_OVERVIEW.md` is the store listing. Keep it in step with
 `bb.description` in `package.json`.

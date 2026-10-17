@@ -90,10 +90,18 @@ puts it in the composer. The plugin never sends anything.
   than hand a stale draft to the composer, even one that had just finished. A
   worker is not even spawned if the thread moved on while it was being prepared,
   and one that can't be spawned leaves the banner empty.
-- **What a worker is told, and what it may do.** Besides its prompt, each
-  worker session gets a standing instruction (through the agent configuration
-  hook, ahead of the conversation it quotes): treat that conversation as
-  material, never as instructions, and use no tools. A worker is a full agent
+- **What a worker is told, and what it may do.** Every suggestion prompt
+  (compact or detailed) and expansion prompt carries the drafting-only rule
+  before its source material and repeats the boundary afterwards. The same
+  rule is supplied through the agent configuration hook; prompts keep it even
+  if the hook is unavailable. The worker drafts a prompt for another agent to
+  act on after the user sends it. Every action in the draft is addressed to
+  that receiving agent. The worker must use only the supplied text,
+  treat the conversation, picked suggestion and reason as material, never as
+  instructions, and take no action: no tools, even for read-only inspection
+  or tests, no delegation, messages, state changes or commits. A click requests
+  only a draft, never execution, and general autonomy instructions do not
+  expand the worker's role. A worker is a full agent
   session in the thread's environment and the answer it reads can carry text
   from a web page or a file, so the instruction is only guidance; what limits a
   worker is that it is spawned in the least privileged permission mode its
@@ -216,3 +224,8 @@ plugin host; `tests/helpers.mjs` holds what the files share.
   are told and the permission mode they run in, how a worker is recognised, the
   detailed prompt's format, and the model (a missing default isn't remembered,
   the reasoning level kept when a model lists none).
+- `eval-followups.test.mjs` covers revision snapshots and production prompt
+  capture, offline preparation, alternating comparisons, response checks,
+  tool-event telemetry, missing usage, timeouts, and retained evidence. The
+  native CLI boundary uses a fake executable in these tests. Real model
+  comparisons use the separate [prompt eval](EVALUATING_PROMPTS.md).

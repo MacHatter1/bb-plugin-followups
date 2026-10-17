@@ -30,6 +30,19 @@ Never change it on your own; point the user there if they ask.
 
 Add `--json` to any command when the output drives code.
 
+## Evaluate prompt changes in the source repository
+
+Run `npm run test:worker-prompts` for the focused instruction and plugin
+lifecycle checks. Run `npm run eval:followups -- --baseline HEAD` to prepare a
+comparison against the current working tree without model calls. Add `--live`
+only when the user requests a model evaluation. The default is Codex with
+`gpt-6-luna` and low reasoning. This eval does not change the plugin's saved model.
+
+Use `docs/EVALUATING_PROMPTS.md` in the source checkout for repeated comparisons,
+quality checks, paired output review, timing, token usage, and tool telemetry.
+Report missing telemetry as unknown and distinguish native Codex timing from
+the full BB worker path. A clean sample is not a provider-wide execution guarantee.
+
 ## Historical Codex worker chats
 
 Old releases deleted BB worker records without archiving the provider chat.
