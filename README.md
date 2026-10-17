@@ -178,8 +178,9 @@ sequenceDiagram
   off, or let it work again, and the worker drafting for the old answer is
   stopped at once. A late result is dropped.
 - **Workers clean up after themselves.** At most four suggestion workers run
-  at once, the rest queue, and each is deleted as soon as it finishes, unless
-  you keep a few for debugging.
+  at once, the rest queue, and each is archived once its output is used or
+  becomes stale. BB forwards the archive to providers that support it.
+  The cleanup sweep deletes old workers, unless you keep a few for debugging.
 
 The full detail, including timings, edge cases and cleanup rules, is in
 [docs/DESIGN.md](docs/DESIGN.md).
@@ -198,9 +199,9 @@ The full detail, including timings, edge cases and cleanup rules, is in
   follow-ups on starts a worker on your chosen model, at most four at once.
   The footer shows each run's cost. Its token count covers the worker's whole
   context, which is mostly cached prompt.
-- 🧹 **Leaves nothing behind.** Workers are hidden threads, deleted when they
-  finish (or archived, if you set `keepWorkers`). A sweep removes any
-  leftovers.
+- 🧹 **Leaves nothing behind.** Workers are hidden threads, archived once their
+  output is used or becomes stale, including at the provider when supported.
+  A sweep deletes old workers, respecting `keepWorkers`.
 - 🙅 **No agent tools.** Agents can't write follow-ups. The banner is yours.
 
 ## CLI
@@ -231,6 +232,21 @@ bb followups cleanup --dry-run      # leftover worker threads it would delete
 `regenerate` and `draft` each spawn a real worker.
 
 </details>
+
+For older Codex worker chats whose BB records were already deleted, run the
+standalone backfill from this repository:
+
+```sh
+node scripts/archive-existing-codex-followups.mjs --dry-run
+node scripts/archive-existing-codex-followups.mjs --apply
+```
+
+The default is a read-only preview. It matches the plugin's exact worker prompt
+prefixes, checks that the last user message is still a worker prompt and the
+last turn finished, and skips chats updated within five minutes. `--apply`
+archives through Codex's API; it never deletes chats or edits Codex's database.
+Use `--json` to inspect every matching ID. This historical backfill is for Codex;
+it does not require a plugin reload.
 
 **Agent tools:** none. The bundled [skill](skills/followups/SKILL.md) tells
 agents the banner is yours, to inspect it with `bb followups show` only when

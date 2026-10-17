@@ -11,11 +11,11 @@ const OUTPUT = '[{"label": "Add a test", "why": "The fix shipped untested"}]';
 
 /**
  * A fake BB. `metadata` seeds what is stored per thread; `prompts` is the user's message history.
- * `world` counts metadata writes and records spawns, stops and deletes.
+ * `world` counts metadata writes and records spawns, stops, archives and deletes.
  */
 async function boot({ spawnFails = false, metadata = {}, prompts = [], settings = {}, status = "idle", models = null } = {}) {
   const world = {
-    metadata: structuredClone(metadata), writes: 0, workers: {}, spawned: [], spawnArgs: [], stops: [], deletes: [], modelsGate: null,
+    metadata: structuredClone(metadata), writes: 0, workers: {}, spawned: [], spawnArgs: [], stops: [], archives: [], deletes: [], modelsGate: null,
     spawnGate: null, spawnCalls: 0, noDefaultModel: false,
   };
   const row = (id) => makeThreadResponse({ id, status, parentThreadId: null, visibility: "visible", projectId: "p", environmentId: "e" });
@@ -47,7 +47,10 @@ async function boot({ spawnFails = false, metadata = {}, prompts = [], settings 
           world.spawned.push(id);
           return { id };
         },
-        archive: async () => ({}),
+        archive: async ({ threadId }) => {
+          world.archives.push(threadId);
+          return {};
+        },
         stop: async ({ threadId }) => {
           world.stops.push(threadId);
           return {};
@@ -155,7 +158,8 @@ test("a reload stops the draft in flight and releases its worker before it finis
   await until(() => w.world.spawned.length === 1);
   await w.dispose();
   assert.ok(w.world.stops.includes("worker1"), "the worker was stopped");
-  assert.ok(w.world.deletes.includes("worker1"), "and deleted, not left for the sweep");
+  assert.ok(w.world.archives.includes("worker1"), "and archived at once");
+  assert.deepEqual(w.world.deletes, [], "deletion is left to the sweep");
   assert.equal(w.logs().filter((l) => l.level === "warn").length, 0, JSON.stringify(w.logs().map((l) => l.message)));
 });
 
@@ -166,7 +170,8 @@ test("a reload stops a message draft in flight too, and says nothing afterwards"
   assert.equal(w.world.workers.worker1.title, "Followups draft");
   await w.dispose();
   assert.ok(w.world.stops.includes("worker1"));
-  assert.ok(w.world.deletes.includes("worker1"));
+  assert.ok(w.world.archives.includes("worker1"));
+  assert.deepEqual(w.world.deletes, []);
   await outcome; // settles instead of hanging
   assert.equal(w.logs().filter((l) => l.level === "warn").length, 0, JSON.stringify(w.logs().map((l) => l.message)));
 });
@@ -349,7 +354,7 @@ test("saving a model that doesn't support the level picked falls back to its def
 
 // ---- a reload while a worker is being spawned ----
 
-test("a worker whose spawn returns while the plugin reloads is still stopped and deleted", async () => {
+test("a worker whose spawn returns while the plugin reloads is still stopped and archived", async () => {
   const w = await boot();
   let release;
   w.world.spawnGate = new Promise((resolve) => { release = resolve; });
@@ -361,5 +366,6 @@ test("a worker whose spawn returns while the plugin reloads is still stopped and
   await disposing;
   assert.deepEqual(w.world.spawned, ["worker1"]);
   assert.ok(w.world.stops.includes("worker1"), "the late worker was stopped");
-  assert.ok(w.world.deletes.includes("worker1"), "and deleted, not left running");
+  assert.ok(w.world.archives.includes("worker1"), "and archived, not left running");
+  assert.deepEqual(w.world.deletes, [], "deletion is left to the sweep");
 });

@@ -29,3 +29,13 @@ The drafting model is the user's choice under Settings → Follow-ups model.
 Never change it on your own; point the user there if they ask.
 
 Add `--json` to any command when the output drives code.
+
+## Historical Codex worker chats
+
+Old releases deleted BB worker records without archiving the provider chat.
+Those provider-only chats cannot be reached by `bb followups cleanup`. From the
+Followups source repository, preview them with
+`node scripts/archive-existing-codex-followups.mjs --dry-run --json`.
+`--apply` archives matched chats through Codex's API and never deletes them.
+Discovery checks the exact worker prompt, last user message, completed turn,
+and a five-minute minimum age. It skips chats the user continued afterwards.

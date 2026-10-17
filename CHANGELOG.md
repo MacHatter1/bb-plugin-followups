@@ -6,6 +6,19 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- A standalone Codex backfill script for historical worker chats whose BB
+  records were already deleted. It previews matches by default and archives
+  through Codex's API with `--apply`, without deleting chats.
+
+### Fixed
+
+- Follow-up workers are archived once their output is used or becomes stale,
+  so BB can also archive the provider's chat when supported. Deletion stays
+  with the existing cleanup sweep, including its retention and environment
+  guards. Failed archive requests are logged and retried during cleanup.
+
 ## 0.6.2 - 2026-10-11
 
 ### Changed

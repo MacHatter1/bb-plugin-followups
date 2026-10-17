@@ -101,14 +101,18 @@ puts it in the composer. The plugin never sends anything.
   also don't get this plugin's skill. The hook recognises a worker by its title
   together with a `worker` marker seeded into its plugin metadata at spawn, so a
   thread that merely has a worker's title is treated like any other.
-- **Cleanup.** The hidden worker threads are deleted as soon as they finish, so
-  they don't pile up. A worker is only deleted while another live thread keeps
-  its environment alive (BB tears an environment down, with no grace period, when
-  its last thread is deleted); otherwise it is archived. A sweep shortly after
-  load, and at most every ten minutes after a worker finishes, deletes any
-  leftovers: hidden threads this plugin spawned (matched by origin and title),
-  finished and at least five minutes old. The "Worker threads to keep" setting
-  retains the newest few, archived, for debugging.
+- **Cleanup.** Hidden worker threads are stopped and archived as soon as their
+  output is consumed or discarded as stale, including suggestion runs and
+  message drafts. BB forwards archive requests to providers advertising
+  `supportsThreadArchive`; other providers get BB's local archive behavior.
+  Archiving runs in the background so it never delays the banner or composer.
+  Failed archive requests are logged and leave the worker for a later retry.
+  A sweep shortly after load, and at most every ten minutes after a worker
+  finishes, deletes leftovers: hidden threads this plugin spawned (matched by
+  origin and title), finished and at least five minutes old. Unarchived
+  leftovers are archived before deletion. A worker is only deleted while
+  another live thread keeps its environment alive. The "Worker threads to keep"
+  setting retains the newest few, archived, for debugging.
 - **Reloading.** When the plugin is reloaded or disabled, drafts in flight are
   stopped and their workers released from the dispose hook, while the API still
   works, and nothing starts afterwards. A worker whose spawn is still on its way

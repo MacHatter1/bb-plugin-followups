@@ -629,7 +629,7 @@ export default async function plugin(bb: BbPluginApi) {
       type: "number",
       label: "Worker threads to keep",
       description:
-        "Each follow-up is drafted by a hidden worker thread, which is deleted as soon as it finishes. Keep the most recent few (archived) instead if you want to inspect what the model was sent and answered. 0 keeps none.",
+        "Each follow-up is drafted by a hidden worker thread, archived once its output is used or becomes stale. Cleanup deletes old workers. Keep the most recent few if you want to inspect what the model was sent and answered. 0 keeps none.",
       default: 0,
     },
   });
@@ -774,8 +774,10 @@ export default async function plugin(bb: BbPluginApi) {
 
   /** Set when the plugin is being reloaded or disabled: nothing new may start, and nothing may log or write. */
   let disposed = false;
-  /** Worker threads spawned by this process and not yet released (never swept), with their parent's environment. */
-  const liveWorkers = new Map<string, string | null>();
+  /** Worker threads spawned by this process and not yet released (never swept). */
+  const liveWorkers = new Set<string>();
+  /** A reload joins an archive already in progress instead of releasing the same worker twice. */
+  const workerReleases = new Map<string, Promise<"archived" | "retained">>();
   /** Threads with a generation currently running, each with that run (see `generate`). */
   const inFlight = new Map<string, Promise<void>>();
   /** Worker spawns still on their way: a worker only joins `liveWorkers` once its spawn returns. */
@@ -1057,55 +1059,42 @@ export default async function plugin(bb: BbPluginApi) {
     return live.length > 0;
   }
 
-  /** Delete a finished worker. False means it was left alone and should be archived instead. */
-  async function deleteWorker(workerId: string, parentEnvironmentId: string | null): Promise<boolean> {
-    try {
-      const worker = await bb.sdk.threads.get({ threadId: workerId });
-      const sharesParentEnvironment =
-        worker.environmentId !== null && worker.environmentId === parentEnvironmentId;
-      if (sharesParentEnvironment && !(await environmentHasLiveThread(worker.environmentId!))) {
-        return false;
-      }
-      await bb.sdk.threads.delete({ threadId: workerId, childThreadsConfirmed: false });
-      return true;
-    } catch (error) {
-      bb.log.warn(`followups could not delete worker ${workerId}: ${errorMessage(error)}`);
-      return false;
-    }
-  }
-
   /**
-   * A worker is finished with. Normally it is deleted, since it only exists to
-   * run one prompt; with "Worker threads to keep" set it is archived instead
-   * and the sweep trims the oldest beyond that many.
+   * A worker's output has been used or discarded as stale. BB forwards the
+   * archive to providers that support it; deletion belongs to the later sweep.
    */
-  async function releaseWorker(
-    workerId: string,
-    parentEnvironmentId: string | null,
-  ): Promise<"deleted" | "archived"> {
-    liveWorkers.delete(workerId);
-    if (keepWorkers === 0) {
+  function releaseWorker(workerId: string): Promise<"archived" | "retained"> {
+    const current = workerReleases.get(workerId);
+    if (current) return current;
+    const release = (async (): Promise<"archived" | "retained"> => {
       await bb.sdk.threads.stop({ threadId: workerId }).catch(() => undefined);
-      if (await deleteWorker(workerId, parentEnvironmentId)) {
+      try {
+        await bb.sdk.threads.archive({ threadId: workerId });
+        return "archived";
+      } catch (error) {
+        // Keep the session available for a later cleanup attempt rather than
+        // deleting the only BB reference to a provider chat that is still live.
+        bb.log.warn(`followups could not archive worker ${workerId}: ${errorMessage(error)}`);
+        return "retained";
+      } finally {
+        liveWorkers.delete(workerId);
+        workerReleases.delete(workerId);
         maybeSweep();
-        return "deleted";
       }
-    }
-    await bb.sdk.threads.archive({ threadId: workerId }).catch(() => undefined);
-    await bb.sdk.threads.stop({ threadId: workerId }).catch(() => undefined);
-    maybeSweep();
-    return "archived";
+    })();
+    workerReleases.set(workerId, release);
+    return release;
   }
 
   /**
-   * Release a worker without making anyone wait for it. Stopping and deleting a
+   * Release a worker without making anyone wait for it. Stopping and archiving a
    * thread takes real time, and nothing the user is waiting on (the banner, a
    * draft) depends on it, so it runs on its own and just reports how long it took.
    */
-  function releaseInBackground(workerId: string, parentEnvironmentId: string | null): void {
+  function releaseInBackground(workerId: string): void {
     if (disposed) return; // the dispose hook releases every live worker itself
     const startedAt = Date.now();
-    void releaseWorker(workerId, parentEnvironmentId).then(
+    void releaseWorker(workerId).then(
       (outcome) =>
         bb.log.info(`followups released worker ${workerId} (${outcome}) in ${Date.now() - startedAt}ms`),
       (error: unknown) =>
@@ -1154,7 +1143,12 @@ export default async function plugin(bb: BbPluginApi) {
         skip("too recent");
       } else if (kept < keepWorkers) {
         kept += 1;
-        report.kept.push(worker.id);
+        try {
+          if (!options.dryRun && worker.archivedAt === null) await bb.sdk.threads.archive({ threadId: worker.id });
+          report.kept.push(worker.id);
+        } catch (error) {
+          skip(`archive failed: ${errorMessage(error)}`);
+        }
       } else if (report.deleted.length >= SWEEP_MAX_DELETES) {
         skip("over the per-run limit");
       } else {
@@ -1173,11 +1167,14 @@ export default async function plugin(bb: BbPluginApi) {
           report.deleted.push(worker.id);
           continue;
         }
+        let operation = "archive";
         try {
+          if (worker.archivedAt === null) await bb.sdk.threads.archive({ threadId: worker.id });
+          operation = "delete";
           await bb.sdk.threads.delete({ threadId: worker.id, childThreadsConfirmed: false });
           report.deleted.push(worker.id);
         } catch (error) {
-          skip(`delete failed: ${errorMessage(error)}`);
+          skip(`${operation} failed: ${errorMessage(error)}`);
         }
       }
     }
@@ -1193,9 +1190,9 @@ export default async function plugin(bb: BbPluginApi) {
       if (report.deleted.length > 0) {
         bb.log.info(`followups cleanup: deleted ${report.deleted.length} worker thread(s)`);
       }
-      const failed = report.skipped.filter((item) => item.reason.startsWith("delete failed"));
+      const failed = report.skipped.filter((item) => /^(archive|delete) failed:/.test(item.reason));
       if (failed.length > 0) {
-        bb.log.warn(`followups cleanup: ${failed.length} delete(s) failed, e.g. ${failed[0]!.reason}`);
+        bb.log.warn(`followups cleanup: ${failed.length} worker(s) could not be cleaned up, e.g. ${failed[0]!.reason}`);
       }
     } catch (error) {
       bb.log.warn(`followups cleanup failed: ${errorMessage(error)}`);
@@ -1373,7 +1370,7 @@ export default async function plugin(bb: BbPluginApi) {
         prompt,
       })
       .then((worker) => {
-        liveWorkers.set(worker.id, parent.environmentId);
+        liveWorkers.add(worker.id);
         return worker.id;
       });
     spawning.add(spawned);
@@ -1600,7 +1597,7 @@ export default async function plugin(bb: BbPluginApi) {
     } finally {
       if (holdsSlot) giveDraftSlot();
       if (draftAborts.get(threadId) === abort) draftAborts.delete(threadId);
-      if (workerId) releaseInBackground(workerId, parent.environmentId);
+      if (workerId) releaseInBackground(workerId);
     }
   }
 
@@ -1679,7 +1676,7 @@ export default async function plugin(bb: BbPluginApi) {
       bb.log.warn(`followups expand failed for ${threadId}: ${errorMessage(error)}`);
       return { text: picked.label, drafted: false, stats: null };
     } finally {
-      if (workerId) releaseInBackground(workerId, parent.environmentId);
+      if (workerId) releaseInBackground(workerId);
     }
   }
 
@@ -2028,9 +2025,9 @@ export default async function plugin(bb: BbPluginApi) {
     for (const aborts of expandAborts.values()) for (const abort of aborts) abort.abort();
     // A worker whose spawn is still on its way is released as soon as it arrives.
     const releases = [
-      ...[...liveWorkers].map(([workerId, environmentId]) => releaseWorker(workerId, environmentId)),
+      ...[...liveWorkers].map((workerId) => releaseWorker(workerId)),
       ...[...spawning].map((spawned) =>
-        spawned.then((workerId) => releaseWorker(workerId, liveWorkers.get(workerId) ?? null)),
+        spawned.then((workerId) => releaseWorker(workerId)),
       ),
     ];
     let grace: ReturnType<typeof setTimeout> | undefined;
