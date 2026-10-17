@@ -6,6 +6,8 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+## 0.6.3 - 2026-10-17
+
 ### Added
 
 - A standalone Codex backfill script for historical worker chats whose BB
