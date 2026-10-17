@@ -52,7 +52,9 @@ follow-ups use BB's primary default model.
 Nothing is ever sent for you, and a draft never overwrites what you typed.
 Each suggestion and each draft is a short run on your chosen model, so it
 spends tokens; at most four suggestion workers run at once, and the footer
-shows what each run cost. Workers are hidden threads, deleted when they finish.
+shows what each run cost. Workers are hidden threads, archived once their output
+is used or becomes stale (also at the provider when supported). The cleanup
+sweep deletes old workers, respecting the debug retention setting.
 They run in the least privileged permission mode their provider offers and are
 told to use no tools, but they are agent sessions in the thread's environment,
 not a sandbox.
