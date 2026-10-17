@@ -6,6 +6,8 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+## 0.6.4 - 2026-10-17
+
 ### Added
 
 - A reusable before/after prompt eval, with a fixed conversation corpus,
