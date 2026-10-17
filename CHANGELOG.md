@@ -6,6 +6,8 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+## 0.6.5 - 2026-10-17
+
 ### Fixed
 
 - Suppress suggestions to verify completed work just because its diff, logs or

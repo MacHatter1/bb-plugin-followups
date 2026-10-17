@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-followups",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Suggest clickable follow-up prompts above the composer when a thread finishes.",
   "license": "MIT",
   "type": "module",
