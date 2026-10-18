@@ -42,6 +42,7 @@ import {
   takePendingDraft,
 } from "@/lib/banner-memory";
 import type { BannerMemory } from "@/lib/banner-memory";
+import { batchId, readExpandedBatch, writeExpandedBatch } from "@/lib/banner-collapse";
 
 const CHANGED = "followups-changed";
 /** Fade and rise in when the banner (or its ready state) first appears. */
@@ -49,30 +50,12 @@ const ENTER =
   "animate-in fade-in-0 slide-in-from-bottom-1 duration-200 motion-reduce:animate-none";
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-const COLLAPSED_KEY = "followups:collapsed";
 /**
  * Two balanced columns when there's room (a lone fourth tile looks orphaned in three); one when narrow.
  * 21rem lets two fit in BB's 726px message box, whose banner leaves 706px for the grid (22rem needed 710px).
  */
 const GRID =
   "grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(21rem,1fr))]";
-
-/** Whether the user folded the banner down to its header (remembered across threads). Defaults to folded. */
-function readCollapsed(): boolean {
-  try {
-    return localStorage.getItem(COLLAPSED_KEY) !== "0";
-  } catch {
-    return true;
-  }
-}
-
-function writeCollapsed(collapsed: boolean): void {
-  try {
-    localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
-  } catch {
-    // Storage unavailable: the choice just lasts until the next reload.
-  }
-}
 
 const STATS_OPEN_KEY = "followups:stats-open";
 
@@ -395,7 +378,7 @@ function ThreadFollowups({ threadId }: { threadId: string }) {
   const memory = useBannerMemory(threadId);
   const { expandingId, draftedId, draftStats } = memory;
   const [notice, setNotice] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [expandedBatch, setExpandedBatch] = useState(() => readExpandedBatch(threadId));
   /** Prefix for the ids that tie each tile to its reason, for screen readers. */
   const idBase = useId();
   /** The row buttons, in order, for arrow-key navigation. */
@@ -530,6 +513,8 @@ function ThreadFollowups({ threadId }: { threadId: string }) {
   }
 
   const suggestions = state.suggestions;
+  const currentBatch = batchId(suggestions);
+  const collapsed = expandedBatch !== currentBatch;
   const composerHasOwnText = hasOwnText(threadId, composer.text);
   const hint = busy
     ? "Writing your message…"
@@ -538,9 +523,9 @@ function ThreadFollowups({ threadId }: { threadId: string }) {
       : "";
 
   function toggleCollapsed() {
-    const next = !collapsed;
-    setCollapsed(next);
-    writeCollapsed(next);
+    const next = collapsed ? currentBatch : null;
+    setExpandedBatch(next);
+    writeExpandedBatch(threadId, next);
   }
 
   /**
