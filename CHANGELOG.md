@@ -6,6 +6,8 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+## 0.6.6 - 2026-10-18
+
 ### Changed
 
 - New follow-ups start collapsed. Expanding a thread's current suggestions is
