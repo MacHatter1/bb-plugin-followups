@@ -70,7 +70,9 @@ fills an empty composer, or goes below what you've typed. Slow? Cancel it.
 
 ### ⌨️ Keyboard friendly
 With focus in the banner, the arrow keys move between tiles, 1–9 draft one,
-and Esc returns to the composer. Fold the banner to its header; it remembers.
+and Esc returns to the composer. The banner starts collapsed; click its header
+to show the follow-ups. That set stays expanded across thread switches and
+plugin reloads until you collapse it. New suggestions start collapsed.
 
 </td>
 <td valign="top">

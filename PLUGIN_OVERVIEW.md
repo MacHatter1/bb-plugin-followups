@@ -5,8 +5,9 @@ Suggest clickable follow-up prompts above the composer when a thread finishes.
 - A **Follow-ups** panel above a thread's message box, drafted by a model
   from the thread's last finished answer: a grid of numbered suggestion tiles
   under a header with a count (two columns when there's room, one when it's
-  narrow). Fold it down to just the header with the chevron; it remembers
-  that.
+  narrow). It starts collapsed to just the header; click the header to show
+  the suggestions. That set stays expanded across thread switches and plugin
+  reloads until you collapse it; new suggestions start collapsed.
 - See what each run cost: a footer reads "Generated in 4.2s · 37,275 tokens"
   for the suggestions, with a second line for the draft once you've picked
   one. Open Details for a table of the token split (new input, cached,

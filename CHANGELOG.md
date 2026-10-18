@@ -6,6 +6,11 @@ All notable changes to Followups are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+
+- New follow-ups start collapsed. Expanding a thread's current suggestions is
+  remembered across thread switches and plugin reloads until you collapse them.
+
 ## 0.6.5 - 2026-10-17
 
 ### Fixed

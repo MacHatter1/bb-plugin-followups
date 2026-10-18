@@ -178,6 +178,9 @@ puts it in the composer. The plugin never sends anything.
   there until a banner for its thread puts it in that thread's composer, so one
   that arrives after a rebuild still lands in the right place. It lasts as long
   as the app is open, not across a reload.
+- `lib/banner-collapse.ts` — stores the expanded batch's suggestion ids per
+  thread in local storage. Opening that batch survives thread switches and
+  plugin reloads; new batches start collapsed. Collapsing clears the saved choice.
 - `components/glyph.tsx` — icons drawn straight from
   `@hugeicons/core-free-icons` (a runtime `dependency`, because a
   `bb plugin install git:` build installs without devDependencies; the bundler
@@ -216,6 +219,9 @@ plugin host; `tests/helpers.mjs` holds what the files share.
   hasn't loaded yet leaving them alone, one thread's memory apart from another's,
   what a new batch or a cancel still clears, late or stale results dropped, and
   how a draft goes into the composer.
+- `banner-collapse.test.mjs` — expanded batches survive a module reload, new
+  batches and other threads stay collapsed, collapsing clears the saved choice,
+  and unavailable storage falls back safely.
 - `worker-limit.test.mjs` — at most four suggestion workers at once, in order, with
   places given back; the message draft isn't held up.
 - `robustness.test.mjs` — a failed spawn, clearing only when there is something to
